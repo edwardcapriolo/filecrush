@@ -1,0 +1,2 @@
+Hadoop Filecrush
+Copyright 2010, 2011 m6d Media6degrees

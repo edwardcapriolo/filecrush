@@ -1,0 +1,3 @@
+Hadoop filecrusher.
+
+Turn many small files into fewer larger ones. Also change from text to sequence and other compression options in one pass.
