@@ -1,3 +1,212 @@
 Hadoop filecrusher.
 
 Turn many small files into fewer larger ones. Also change from text to sequence and other compression options in one pass.
+Crush
+
+NAME
+
+  Crush - Crush small files in dfs to fewer, larger files
+
+SYNOPSIS
+  Crush [OPTION]... <input dir> <output dir> <timestamp>
+
+DESCRIPTION
+
+Crush consumes directories containing many small files with the same key and value types and creates fewer, larger files containing the same data. Crush is gives you the control to:
+
+* Name the output files
+* Ignore files that are "big enough"
+* Limit the size of each output file
+* Control the output compression codec
+* Swap smaller files with generated large files in-place
+* No long-running task problem
+
+See the EXAMPLES section
+
+ARGUMENTS
+
+input dir
+  The root of the directory tree to crush. Directories are found recursively.
+
+output dir
+  In non-clone mode, the directory where the output files should be written. In clone mode, the directory where the original files (that were combine into larger files) should be moved.
+
+timestamp
+  A 14 digit job timestamp used to uniquely name files. E.g. 20100221175612. Generate in a script with: date +%Y%m%d%H%M%S
+
+GLOBAL OPTIONS
+
+-?, --help
+  Print this help message.
+
+--threshold
+  Percent threshold relative to the dfs block size over which a file becomes eligible for crushing. Must be in the (0, 1]. Default is 0.75, which means files smaller than or equal to 75% of a dfs block will be eligible for crushing. File greater than 75% of a dfs block will be left untouched.
+
+--max-file-blocks
+  The maximum number of dfs blocks per output file. Must be a positive integer. Small input files are associated with an output file under the assumption that input and output compression codecs have similar efficiency. Also, a directory containing a lot of data in many small files will be converted into a directory containing a fewer number of large files rather than one super-massive file. With the default value 8, 80 small files, each being 1/10th of a dfs block will be grouped into to a single output file since 8 * 1/10 = 8 dfs blocks. If there are 81 small files, each being 1/10th of a dfs block, two output files will be created. One output file contain the combined contents of 41 files and the second will contain the combined contents of the other 40. A directory of many small files will be converted into fewer number of larger files where each output file is roughly the same size.
+
+--compress
+  Fully qualified class name of the compression codec to use when writing data. It is permissible to use "none" and "gzip" to indicate no compression and org.apache.hadoop.io.compress.GzipCodec, respectively.
+
+--clone
+  Use clone mode. Useful for external Hive tables. In clone mode, the small files are replaced with the larger files. The small files are moved to a subdirectory of the output dir argument. The subdirectory is same as the original directory rooted at output dir. For example, assume the input dir argument and output dir argument are /user/example/input and /user/example/output, respectively. If a file was originally /user/example/input/my-dir/smallfile, then after the clone, the original file would be located in /user/example/output/user/example/input/my-dir/smallfile.
+
+--info
+  Print information to the console about what the crush is doing.
+
+--verbose
+  Print even more information to the console about what the crush is doing.
+
+DIRECTORY OPTIONS
+
+If specified, these options must be appear as a group. When specifying multiple groups of these options, order matters. Defaults for directory options are not used if any are specified. See the EXAMPLES section.
+
+--regex
+  Regular expression that matches a directory name. Defaults to .+ if no directory options are specified at all. Empty directories are not required to have a matching regex. Conceptually similar to the first argument of String.replaceAll().
+
+--replacement
+  Replacement string used with corresponding regex to name output files. Defaults to crushed_file-${crush.timestamp}-${crush.task.num}-${crush.file.num} if no directory options are specified at all. The placeholder ${crush.timestamp} refers to the command line argument. ${crush.task.num} refers to the reducer number. ${crush.file.num} is a zero-based count of files producer by a specific reducer. The first file written by a reducer will have ${crush.file.num} = 0, the second = 1, the third = 2, etc. Conceptually similar to the second argument of String.replaceAll().
+
+--input-format
+  Fully qualified class name of the input format for the data in a directory. Can use the "text" and "sequence" shortcuts for org.apache.hadoop.mapred.TextInputFormat and org.apache.hadoop.mapred.SequenceFileInputFormat, respectively. Defaults to sequence if no directory options are specified.
+
+--output-format
+  Fully qualified class name of the output format to use when writing the output file for a directory. Can use the "text" and "sequence" shortcuts for org.apache.hadoop.mapred.TextOutputFormat and org.apache.hadoop.mapred.SequenceFileOutputFormat, respectively. Defaults to sequence if no directory options are specified.
+
+EXAMPLES
+
+Say we have the following files:
+
+/user/example/work/input/
+                         small-file1
+                         small-file2
+                         small-file3
+                         small-file4
+                         big-enough-file
+                         subdir/
+                                 small-file6
+                                 small-file7
+                                 small-file8
+                                 medium-file1
+                                 medium-file2
+
+And we invoke the crush like this:
+
+  Crush /user/example/work/input /user/example/work/output 20100221175612
+
+Since we have not specified any of the directory options, the default regex, replacement, input-format, and output-format are used. We will get:
+
+/user/example/work/
+                   input/
+                         small-file1
+                         small-file2
+                         small-file3
+                         small-file4
+                         subdir/
+                                 small-file6
+                                 small-file7
+                                 small-file8
+                                 medium-file1
+                                 medium-file2
+                   output/
+                          crushed_file-20100221175612-0-0
+                          big-enough-file
+                          subdir/
+                                 crushed_file-20100221175612-1-0
+                                 crushed_file-20100221175612-1-1
+
+Where:
+
+crushed_file-20100221175612-0-0 = small-file1 + small-file2 + small-file3 + small-file4
+
+crushed_file-20100221175612-1-0 = medium-file1 + small-file6 + small-file8
+
+crushed_file-20100221175612-1-1 = medium-file2 + small-file7
+
+Notice how big-enough-file was moved to the output directory. The input directory contains only the files that were combined into the larger files.
+
+By default, the output file names end with two numbers. The first number is the task number of the reducer that wrote the file. The second number is the zero-based file count of that specific reducer. So a file ending with 0-0 was produced by reducer 0 and was the first file written by that reducer. A file ending 0-1 is the second file written by that reducer. A file ending 1-0 was produced by reducer 1 and was the first file written by that reducer. In the example, notice how the directory subdir was converted into two files. If mapred.reduce.tasks permits, multiple reducers can cooperate to crush a large directory.
+
+Now a clone example. Say we invoked the crush like this:
+
+  Crush --clone /user/example/work/input /user/example/clone 20100221175612
+
+With the clone option. We would end up with:
+
+/user/example/
+              work/input/
+                         crushed_file-20100221175612-0-0
+                         big-enough-file
+                         subdir/
+                                crushed_file-20100221175612-1-0
+                                crushed_file-20100221175612-1-1
+              clone/user/example/input/
+                                       small-file1
+                                       small-file2
+                                       small-file3
+                                       small-file4
+                                       subdir/
+                                              small-file6
+                                              small-file7
+                                              small-file8
+                                              medium-file1
+                                              medium-file2
+
+Note how the original directory structure of /user/example/input as it appeared before the crush is reproduced in /user/example/clone. The small files that were combined are moved to the clone directory while the output files and file that were "big enough" are now in the inpu directory. Clone mode is useful for crushing external Hive tables. Just make sure that there are no Hive queries running on the table because they will fail when the small files are moved to the clone directory.
+
+Now we try an example using the directory options. Say we invoke the crush like this to control the output file names:
+
+  Crush \
+  --regex=.*/(.+) \
+  --replacement=$1-${crush.timestamp}-${crush.task.num}-${crush.file.num} \
+  --input=sequence \
+  --output=sequence \
+  /user/example/work/input /user/example/work/output 20100221175612
+
+The --regex and --replacement arguments are similar to the arguments passed to String.replaceAll(). The regex argument matches the final part of a directory path. For /user/example/work/input, it will match input. For /user/example/work/input/subdir, it will match subdir. For matching purposes, a directory path does not have a trailing slash. The replacement argument refers to the match group by number to rename the file. The result is:
+
+/user/example/work/output/
+                          input-20100221175612-0-0
+                          big-enough-file
+                          subdir/
+                                 subdir-20100221175612-1-0
+                                 subdir-20100221175612-1-1
+
+The regex and replacement options are useful for naming the output files when crushing external Hive tables that are partitioned into directories whose names have business significance.
+
+The following invocation fails:
+
+  Crush \
+  --regex=.*/input \
+  --replacement=input-${crush.timestamp}-${crush.task.num}-${crush.file.num} \
+  --input=sequence \ 
+  --output=sequence \
+  /user/example/work/input /user/example/work/output 20100221175612
+
+Since we have specified some directory options, we must ensure that all directories in hierarchy rooted at the input argument have a matching regex (since the default regex is no longer applicable). In this invocation, there is no regex argument that matches /user/example/work/input/subdir. We must change it to:
+
+  Crush \
+  --regex=.*/input \
+  --replacement=input-${crush.timestamp}-${crush.task.num}-${crush.file.num} \
+  --input=sequence \
+  --output=sequence \
+  --regex=.*/subdir \
+  --replacement=as-text-${crush.timestamp}-${crush.task.num}-${crush.file.num} \
+  --input=sequence \
+  --output=text \
+  /user/example/work/input /user/example/work/output 20100221175612
+
+This will yield:
+
+/user/example/work/output/
+                          input-20100221175612-0-0
+                          big-enough-file
+                          subdir/
+                                 as-text-20100221175612-1-0
+                                 as-text-20100221175612-1-1
+
+Notice subdir has two files whose names differ only by the ${crush.file.num} value. Without the ${crush.file.num}, file names are not guaranteed to be unique.
+
+NOTES
+
+This program creates a temporary directories in "tmp" of the executing user's home directory in dfs.
