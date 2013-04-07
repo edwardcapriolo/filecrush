@@ -51,8 +51,10 @@ public class Clean extends Configured implements Tool{
 	public int run(String[] args) throws Exception {
         conf = getConf();
        
+        Path targetDir = new Path(conf.get(TARGET_DIR));
+
 		try {
-			fs=FileSystem.get(getConf());
+			fs = targetDir.getFileSystem(conf);
 		} catch (IOException e) {
 			throw new RuntimeException("Could not open filesystem");
 		}
@@ -67,7 +69,7 @@ public class Clean extends Configured implements Tool{
 			cutoff=now-targetAge;
 		}
 		
-        return cleanup (new Path(conf.get(TARGET_DIR)));
+        return cleanup(targetDir);
     
 	}
 	

@@ -50,7 +50,7 @@ public class CountersInputFormat extends FileInputFormat<Counters, NullWritable>
 		Path path = fSplit.getPath();
 		long length = fSplit.getLength();
 
-		FileSystem fs = FileSystem.get(jobconf);
+		FileSystem fs = path.getFileSystem(jobconf);
 
 		FSDataInputStream is = fs.open(path);
 
