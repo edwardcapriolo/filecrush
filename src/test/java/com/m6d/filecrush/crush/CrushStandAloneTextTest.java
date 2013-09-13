@@ -140,6 +140,50 @@ public class CrushStandAloneTextTest {
 		assertThat(out.exists(), is(false));
 	}
 
+	@Test
+	public void ignoreRegexTest() throws Exception {
+
+		File in = tmp.newFolder("skip_test");
+
+		createFile(in, "lil-0", 0, 1);
+		createFile(in, "lil-1", 1, 2);
+		createFile(in, "big-2", 2, 5);
+		createFile(in, "big-3", 3, 5);
+		// Files to be ignored
+		createFile(in, "lil-0.index", 0, 10);
+		createFile(in, "lil-1.index", 1, 20);
+		createFile(in, "big-2.index", 2, 50);
+		createFile(in, "big-3.index", 3, 50);
+
+		File out = new File(tmp.getRoot(), "skip_test_out");
+
+		ToolRunner.run(job, new Crush(), new String[] {
+				"--input-format=text",
+				"--output-format=text",
+				"--ignore-regex=.*\\.index",
+				"--compress=none",
+
+				in.getAbsolutePath(), out.getAbsolutePath()
+		});
+
+		/*
+		 * Make sure the original files are still there.
+		 */
+		verifyFile(in, "lil-0", 0, 1);
+		verifyFile(in, "lil-1", 1, 2);
+		verifyFile(in, "big-2", 2, 5);
+		verifyFile(in, "big-3", 3, 5);
+		verifyFile(in, "lil-0.index", 0, 10);
+		verifyFile(in, "lil-1.index", 1, 20);
+		verifyFile(in, "big-2.index", 2, 50);
+		verifyFile(in, "big-3.index", 3, 50);
+
+		/*
+		 * Verify the crush output.
+		 */
+		verifyCrushOutput(out, new int[] { 0, 1 }, new int[] { 1, 2}, new int[] { 2, 5 }, new int[] { 3, 5 });
+	}
+
 	private void verifyCrushOutput(File crushOutput, int[]... keyCounts) throws IOException {
 
 		List<String> actual = new ArrayList<String>();

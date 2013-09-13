@@ -809,6 +809,37 @@ public class CrushMapReduceTest extends HadoopTestCase {
 		assertThat(jobCounters.getCounter(ReducerCounter.FILES_CRUSHED),		equalTo( 23L));
 		assertThat(jobCounters.getCounter(ReducerCounter.RECORDS_CRUSHED),	equalTo(964L));
 	}
+	
+
+	@Test
+	public void executeIgnoreFile() throws Exception {
+
+		// Ones to include
+		writeFile("in_skip_test/file10", Format.TEXT);
+		writeFile("in_skip_test/file11", Format.TEXT);
+		writeFile("in_skip_test/file12", Format.TEXT);
+		// Ones to skip
+		writeFile("in_skip_test/file90", Format.TEXT);
+		writeFile("in_skip_test/file91", Format.TEXT);
+		writeFile("in_skip_test/file92", Format.TEXT);
+
+		Crush crush = new Crush();
+
+		ToolRunner.run(job, crush, new String [] {
+			"--threshold=0.015",
+			"--max-file-blocks=1",
+			"--verbose",
+			"--input-format=text",
+			"--output-format=text",
+			"--compress=none",
+			"--ignore-regex=.*9[0-9]",
+			
+			"in_skip_test", "out_skip_test", "20101116153015"
+		});
+
+		verifyOutput(homeDir + "/out_skip_test", "crushed_file-*-*-*", Format.TEXT, Format.TEXT, null, "file10", "file11", "file12");
+		
+	}
 
 	/**
 	 * Copies data from the given input stream to an HDFS file at the given path. This method will close the input stream.
@@ -921,7 +952,7 @@ public class CrushMapReduceTest extends HadoopTestCase {
 		if (Format.TEXT == outFmt) {
 			/*
 			 * TextInputFormat will produce keys that are byte offsets and values that are the line. This is not actually what we want.
-			 * We want to preserve the actualy keys and values in the files, just like SequenceFileInputFormat. So, either way, the
+			 * We want to preserve the actual keys and values in the files, just like SequenceFileInputFormat. So, either way, the
 			 * keys and values should be the text representations of what went in.
 			 */
 			BufferedReader reader;
@@ -931,9 +962,9 @@ public class CrushMapReduceTest extends HadoopTestCase {
 				Path path = new Path(dir + "/" + crushOutMask);
 
 				FileStatus[] globStatus = getFileSystem().globStatus(path);
-
+				
 				if (globStatus == null || 1 != globStatus.length || globStatus[0].isDir()) {
-					fail(crushOutMask);
+					fail(crushOutMask + " was not found in " + path);
 				}
 
 				crushOut = globStatus[0].getPath();
