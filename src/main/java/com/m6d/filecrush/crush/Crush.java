@@ -153,6 +153,11 @@ public class Crush extends Configured implements Tool {
 	 * specification.
 	 */
 	private List<Matcher> matchers;
+	
+	/**
+	 * Regex from the --ignore-regex option used for filtering out files for crushing.  
+	 */
+	private Matcher ignoredFiles;
 
 	/**
 	 * The counters from the completed job.
@@ -202,6 +207,15 @@ public class Crush extends Configured implements Tool {
 				.withArgName("directory regex")
 				.withDescription("Regular expression that matches a directory name. Used to match a directory with a correponding replacement string")
 				.withLongOpt("regex")
+				.create();
+
+		options.addOption(option);
+
+		option = OptionBuilder
+				.hasArg()
+				.withArgName("ignore file regex")
+				.withDescription("Regular expression to apply for filtering out crush candidate files.  Any files in the input crush directory matching this will be ignored")
+				.withLongOpt("ignore-regex")
 				.create();
 
 		options.addOption(option);
@@ -344,6 +358,10 @@ public class Crush extends Configured implements Tool {
 		} else {
 			console = Verbosity.NONE;
 		}
+		
+		if (cli.hasOption("ignore-regex")) {
+      ignoredFiles = Pattern.compile(cli.getOptionValue("ignore-regex")).matcher("");
+		}
 
 		excludeSingleFileDirs = !cli.hasOption("include-single-file-dirs");
 
@@ -478,6 +496,10 @@ public class Crush extends Configured implements Tool {
 		 * Add the crush specs and compression options to the configuration.
 		 */
 		job.set("crush.timestamp", crushTimestamp);
+		
+		if (ignoredFiles != null) {
+			job.set("crush.ignore-regex", ignoredFiles.pattern().pattern());
+		}
 
 		if (regexes.size() != replacements.size() || replacements.size() != inFormats.size() || inFormats.size() != outFormats.size()) {
 			throw new IllegalArgumentException("Must be an equal number of regex, replacement, in-format, and out-format options");
@@ -654,6 +676,14 @@ public class Crush extends Configured implements Tool {
 
 		for (FileStatus content : contents) {
 			if (!content.isDir()) {
+				if (ignoredFiles != null) {
+					// Check for files to skip
+					ignoredFiles.reset(content.getPath().toUri().getPath());
+					if (ignoredFiles.matches()) {
+						LOG.trace("Ignoring " + content.getPath().toString());
+						continue;
+					}
+				}
 				files.add(new Text(content.getPath().toUri().getPath()));
 			}
 		}
@@ -681,17 +711,19 @@ public class Crush extends Configured implements Tool {
 		CrushReducer reducer = new CrushReducer();
 
 		reducer.configure(job);
-		reducer.reduce(bucket, files.iterator(), new NullOutputCollector<Text, Text>(), Reporter.NULL);
+		reducer.reduce(bucket, files.iterator(), new NullOutputCollector<Text, Text>(), Reporter.NULL);		
+		reducer.close();
 
 		/*
 		 * Use a glob here because the temporary and task attempt work dirs have funny names.
+		 * Include a * at the end to cover wildcards for compressed files.
 		 */
-		Path crushOutput = new Path(absOutDir + "/*/*/crush" + absSrcDir + "/" + dest.getName());
+		Path crushOutput = new Path(absOutDir + "/*/*/crush" + absSrcDir + "/" + dest.getName() + "*");
 
 		FileStatus[] statuses = fs.globStatus(crushOutput);
 
 		if (statuses == null || 1 != statuses.length) {
-			throw new AssertionError();
+			throw new AssertionError("Did not find the expected output in " + crushOutput.toString());
 		}
 
 		rename(statuses[0].getPath(), dest.getParent(), dest.getName());
@@ -992,7 +1024,15 @@ public class Crush extends Configured implements Tool {
 
 					print(Verbosity.INFO, "\n\n" + dir.toUri().getPath());
 
-					FileStatus[] contents = fs.listStatus(dir);
+					FileStatus[] contents = fs.listStatus(dir, new PathFilter() {
+						@Override
+						public boolean accept(Path testPath) {
+							if (ignoredFiles == null) return true;
+							ignoredFiles.reset(testPath.toUri().getPath());
+							return !ignoredFiles.matches();
+						}
+						
+					});
 
 					if (contents == null || contents.length == 0) {
 						print(Verbosity.INFO, " is empty");
