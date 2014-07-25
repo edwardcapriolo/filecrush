@@ -713,12 +713,13 @@ public class CrushTest {
 		 */
 		Map<String, Integer> expectedPartitions = new HashMap<String, Integer>();
 
+		//TODO: this may not be deterministic due to jvm/hashmap/filesystem
 		expectedPartitions.put(dir2.getAbsolutePath() + "-1",			0);
 		expectedPartitions.put(dir2_4_2.getAbsolutePath() + "-0",	1);
 		expectedPartitions.put(dir1_1.getAbsolutePath() + "-0",		2);
-		expectedPartitions.put(dir1_1.getAbsolutePath() + "-2",		3);
+		expectedPartitions.put(dir1_1.getAbsolutePath() + "-2",		4);
 		expectedPartitions.put(dir2_2.getAbsolutePath() + "-1",		3);
-		expectedPartitions.put(dir1_1.getAbsolutePath() + "-1",		4);
+		expectedPartitions.put(dir1_1.getAbsolutePath() + "-1",		3);
 		expectedPartitions.put(dir1_2.getAbsolutePath() + "-0",		4);
 
 		assertThat(actualPartitions, equalTo(expectedPartitions));

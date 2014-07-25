@@ -488,7 +488,7 @@ public class Crush extends Configured implements Tool {
 				}
 			}
 
-			dfsBlockSize = Long.parseLong(job.get("dfs.block.size"));
+			dfsBlockSize = parseDfsBlockSize(job);
 			maxEligibleSize = (long) (dfsBlockSize * threshold);
 		}
 
@@ -589,6 +589,23 @@ public class Crush extends Configured implements Tool {
 		return true;
 	}
 
+	/**
+	 * The block size has changed over the years... Get with the times.
+	 * @param job a conf to check for data
+	 * @return a long representing block size
+	 * @throws RuntimeException if can not determine block size
+	 */
+  private long parseDfsBlockSize(JobConf job){
+    long old = job.getLong("dfs.block.size", -1);
+    if (old == -1){
+      old = job.getLong("dfs.blocksize", -1);
+    }
+    if (old == -1){
+      throw new RuntimeException ( "Could not determine how to set block size. Abandon ship!");
+    }
+    return old;
+  }
+  
 	@Override
 	public int run(String[] args) throws Exception {
 
