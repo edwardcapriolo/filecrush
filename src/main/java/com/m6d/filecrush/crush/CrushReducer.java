@@ -127,7 +127,8 @@ public class CrushReducer extends MapReduceBase implements Reducer<Text, Text, T
 		 * The files we write should be rooted in the "crush" subdir of the output directory to distinguish them from the files
 		 * created by the collector.
 		 */
-		outDirPath = new Path(outDirPath + "/crush").toUri().getPath();
+		Path outDirP = new Path(outDirPath + "/crush");
+		outDirPath = outDirP.toUri().getPath();
 
 		/*
 		 * Configure the regular expressions and replacements we use to convert dir names to crush output file names. Also get the
@@ -145,7 +146,7 @@ public class CrushReducer extends MapReduceBase implements Reducer<Text, Text, T
 		placeHolderToValue.put("crush.timestamp", job.get("crush.timestamp"));
 
 		try {
-			fs = FileSystem.get(job);
+			fs = outDirP.getFileSystem(job);
 		} catch (RuntimeException e) {
 			throw e;
 		} catch (Exception e) {

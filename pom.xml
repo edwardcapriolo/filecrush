@@ -4,7 +4,7 @@
 	<groupId>com.m6d</groupId>
 	<artifactId>filecrush</artifactId>
 	<name>M6D App - Filecrush</name>
-	<version>2.2.2-SNAPSHOT</version>
+	<version>2.2.3-SNAPSHOT</version>
 	<description>filecrush utility</description>
 	<packaging>jar</packaging>
 	<properties>

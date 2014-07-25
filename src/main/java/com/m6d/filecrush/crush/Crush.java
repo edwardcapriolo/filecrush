@@ -613,7 +613,7 @@ public class Crush extends Configured implements Tool {
 			return 0;
 		}
 
-		setFileSystem(FileSystem.get(job));
+		setFileSystem(srcDir.getFileSystem(job));
 
 		FileStatus status = fs.getFileStatus(srcDir);
 

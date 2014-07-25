@@ -41,9 +41,10 @@ public class CrushPartitioner implements Partitioner<Text, Text> {
 		bucketToPartition = new HashMap<Text, Integer>(100);
 
 		try {
-			FileSystem fs = FileSystem.get(job);
+			Path p = new Path(path);
+			FileSystem fs = p.getFileSystem(job);
 
-			Reader reader = new Reader(fs, new Path(path), job);
+			Reader reader = new Reader(fs, p, job);
 
 			Text bucket = new Text();
 			IntWritable partNum = new IntWritable();

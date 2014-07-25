@@ -159,8 +159,8 @@ Now we try an example using the directory options. Say we invoke the crush like 
   Crush \
   --regex=.*/(.+) \
   --replacement=$1-${crush.timestamp}-${crush.task.num}-${crush.file.num} \
-  --input=sequence \
-  --output=sequence \
+  --input-format=sequence \
+  --output-format=sequence \
   /user/example/work/input /user/example/work/output 20100221175612
 
 The --regex and --replacement arguments are similar to the arguments passed to String.replaceAll(). The regex argument matches the final part of a directory path. For /user/example/work/input, it will match input. For /user/example/work/input/subdir, it will match subdir. For matching purposes, a directory path does not have a trailing slash. The replacement argument refers to the match group by number to rename the file. The result is:
@@ -179,8 +179,8 @@ The following invocation fails:
   Crush \
   --regex=.*/input \
   --replacement=input-${crush.timestamp}-${crush.task.num}-${crush.file.num} \
-  --input=sequence \ 
-  --output=sequence \
+  --input-format=sequence \ 
+  --output-format=sequence \
   /user/example/work/input /user/example/work/output 20100221175612
 
 Since we have specified some directory options, we must ensure that all directories in hierarchy rooted at the input argument have a matching regex (since the default regex is no longer applicable). In this invocation, there is no regex argument that matches /user/example/work/input/subdir. We must change it to:
@@ -188,12 +188,12 @@ Since we have specified some directory options, we must ensure that all director
   Crush \
   --regex=.*/input \
   --replacement=input-${crush.timestamp}-${crush.task.num}-${crush.file.num} \
-  --input=sequence \
-  --output=sequence \
+  --input-format=sequence \
+  --output-format=sequence \
   --regex=.*/subdir \
   --replacement=as-text-${crush.timestamp}-${crush.task.num}-${crush.file.num} \
-  --input=sequence \
-  --output=text \
+  --input-format=sequence \
+  --output-format=text \
   /user/example/work/input /user/example/work/output 20100221175612
 
 This will yield:
