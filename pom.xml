@@ -20,7 +20,7 @@
 		<mockito.version>1.8.5</mockito.version>
 		<hamcrest.version>1.2</hamcrest.version>
 		<easymock.version>3.0</easymock.version>
-		<jetty.version>6.1.14</jetty.version>
+		<jetty.version>6.1.23</jetty.version>
 	</properties>
 
 	<build>
